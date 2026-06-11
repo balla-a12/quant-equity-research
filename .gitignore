@@ -8,6 +8,11 @@ data/*.parquet
 data/*.csv
 price_cache/
 
+# Packaging / build
+*.egg-info/
+build/
+dist/
+
 # Python
 __pycache__/
 *.pyc

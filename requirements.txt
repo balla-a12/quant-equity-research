@@ -1,9 +1,0 @@
-quiverquant
-pandas
-numpy
-sqlalchemy
-yfinance
-plotly
-scipy
-python-dotenv
-loguru
