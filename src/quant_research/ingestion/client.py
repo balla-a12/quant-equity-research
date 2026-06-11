@@ -44,6 +44,7 @@ class QuiverClient:
         out = pd.DataFrame({
             "ticker": df["Ticker"].str.upper(),
             "transaction_date": pd.to_datetime(df["TransactionDate"]),
+            "report_date": pd.to_datetime(df["ReportDate"]),
             "representative": df["Representative"],
             "party": df["Party"],
             "chamber": df["House"],
