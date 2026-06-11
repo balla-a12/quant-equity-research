@@ -1,0 +1,16 @@
+# Secrets
+.env
+*.key
+
+# Local database and cached data
+*.db
+data/*.parquet
+data/*.csv
+price_cache/
+
+# Python
+__pycache__/
+*.pyc
+
+# Notebook checkpoints
+.ipynb_checkpoints/
