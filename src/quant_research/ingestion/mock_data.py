@@ -94,3 +94,27 @@ def mock_lobbying(seed=45, n=140, history_days=360):
             "Client": f"{ticker} Inc.", "Issue": rng.choice(_ISSUES),
         })
     return pd.DataFrame(rows)
+
+
+def mock_offexchange(seed=46, history_days=90):
+    """Synthetic off-exchange data matching Quiver's live schema.
+
+    Columns: Ticker, Date, OTC_Short, OTC_Total, DPI (= OTC_Short / OTC_Total).
+    The live feed is a single daily snapshot per ticker; the mock spans several dates so
+    backtests have history to step through. Hot tickers carry a higher DPI (read as more
+    off-exchange buying pressure) and heavier off-exchange volume.
+    """
+    rng = np.random.default_rng(seed)
+    rows = []
+    steps = max(history_days // 3, 1)
+    for ticker in _UNIVERSE:
+        base_dpi = 0.50 + (0.07 if ticker in _HOT else 0.0) + rng.uniform(-0.02, 0.02)
+        base_vol = int(rng.integers(5_000_000, 60_000_000))
+        for k in range(steps):
+            d = date.today() - timedelta(days=k * 3)
+            dpi = min(0.78, max(0.30, base_dpi + rng.normal(0, 0.02)))
+            otc_total = int(base_vol * rng.uniform(0.7, 1.3))
+            otc_short = int(otc_total * dpi)
+            rows.append({"Ticker": ticker, "Date": d, "OTC_Short": otc_short,
+                         "OTC_Total": otc_total, "DPI": round(dpi, 6)})
+    return pd.DataFrame(rows)

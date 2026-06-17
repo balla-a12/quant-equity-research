@@ -139,3 +139,28 @@ class QuiverClient:
             "issue": df["Issue"],
         })
         return out
+
+    # ---- Off-exchange (dark pool) volume ---------------------------------
+    def off_exchange(self):
+        if self.mock:
+            days = max(self.mock_history_days, 90)
+            raw = mock_data.mock_offexchange(history_days=days)
+        else:
+            raw = self._api.offexchange()
+        return self._normalize_offexchange(raw)
+
+    def _normalize_offexchange(self, df):
+        df = df.copy()
+        oe_vol = pd.to_numeric(self._col(df, "OTC_Total", "OffExchange", default=0), errors="coerce")
+        oe_short = pd.to_numeric(self._col(df, "OTC_Short", "Short", default=0), errors="coerce")
+        out = pd.DataFrame({
+            "ticker": self._col(df, "Ticker").astype(str).str.upper(),
+            "date": pd.to_datetime(self._col(df, "Date"), errors="coerce"),
+            "oe_volume": oe_vol,
+            "oe_short": oe_short,
+        })
+        if "DPI" in df.columns:
+            out["dpi"] = pd.to_numeric(df["DPI"], errors="coerce")
+        else:                                            # DPI = off-exchange short ratio
+            out["dpi"] = (out.oe_short / out.oe_volume.replace(0, pd.NA)).clip(0, 1)
+        return out
