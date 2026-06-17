@@ -103,8 +103,11 @@ class QuiverClient:
 
     # ---- Government contracts --------------------------------------------
     def gov_contracts(self):
-        raw = (mock_data.mock_gov_contracts() if self.mock
-               else self._api.gov_contracts())
+        if self.mock:
+            days = max(self.mock_history_days, 120)
+            raw = mock_data.mock_gov_contracts(history_days=days, n=max(80, days * 2))
+        else:
+            raw = self._api.gov_contracts()
         return self._normalize_gov(raw)
 
     def _normalize_gov(self, df):

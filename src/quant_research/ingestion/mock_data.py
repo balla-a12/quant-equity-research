@@ -70,13 +70,13 @@ def mock_insiders(seed=43, n=120):
     return pd.DataFrame(rows)
 
 
-def mock_gov_contracts(seed=44, n=80):
+def mock_gov_contracts(seed=44, n=80, history_days=120):
     rng = np.random.default_rng(seed)
     rows = []
     for _ in range(n):
         ticker = rng.choice(_HOT) if rng.random() < 0.5 else rng.choice(_UNIVERSE)
         rows.append({
-            "Ticker": ticker, "Date": _recent(rng, 90),
+            "Ticker": ticker, "Date": _recent(rng, history_days),
             "Amount": int(rng.integers(50_000, 500_000_000)),
             "Agency": rng.choice(_AGENCIES), "Description": "Procurement contract award",
         })
