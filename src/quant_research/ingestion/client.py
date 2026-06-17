@@ -122,8 +122,11 @@ class QuiverClient:
 
     # ---- Lobbying --------------------------------------------------------
     def lobbying(self):
-        raw = (mock_data.mock_lobbying() if self.mock
-               else self._api.lobbying())
+        if self.mock:
+            days = max(self.mock_history_days, 360)
+            raw = mock_data.mock_lobbying(history_days=days, n=max(140, days))
+        else:
+            raw = self._api.lobbying()
         return self._normalize_lobbying(raw)
 
     def _normalize_lobbying(self, df):
