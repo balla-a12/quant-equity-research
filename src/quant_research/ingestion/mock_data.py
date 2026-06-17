@@ -28,7 +28,7 @@ def _recent(rng, max_days_ago, min_days_ago=0):
     return date.today() - timedelta(days=int(rng.integers(min_days_ago, max_days_ago)))
 
 
-def mock_congress_trading(seed=42, n=180):
+def mock_congress_trading(seed=42, n=180, history_days=40):
     rng = np.random.default_rng(seed)
     rows = []
     for _ in range(n):
@@ -43,7 +43,7 @@ def mock_congress_trading(seed=42, n=180):
         aligned = menr.SECTOR_REPS.get(sector, [])
         rep = rng.choice(aligned) if (aligned and rng.random() < 0.5) else rng.choice(_REPS)
 
-        report = _recent(rng, 40)
+        report = _recent(rng, history_days)
         transaction = report - timedelta(days=int(rng.integers(10, 45)))
         rows.append({
             "Representative": rep,

@@ -24,7 +24,8 @@ def _parse_range(text):
 
 
 class QuiverClient:
-    def __init__(self, token=None, mock=False):
+    def __init__(self, token=None, mock=False, mock_history_days=40):
+        self.mock_history_days = mock_history_days
         # No token means we cannot reach the live API, so we fall back to mock.
         self.mock = mock or token is None
         self._api = None
@@ -33,24 +34,49 @@ class QuiverClient:
             self._api = quiverquant.quiver(token)
 
     # ---- Congressional trades -------------------------------------------
-    def congress_trades(self):
-        raw = (mock_data.mock_congress_trading() if self.mock
-               else self._api.congress_trading())
+    def congress_trades(self, historical=False):
+        if self.mock:
+            raw = mock_data.mock_congress_trading(
+                history_days=self.mock_history_days,
+                n=max(180, self.mock_history_days * 4))
+        else:
+            raw = self._api.congress_trading(recent=not historical)
         return self._normalize_congress(raw)
+
+    @staticmethod
+    def _col(df, *names, default=""):
+        """First present column among `names`, else a default-filled Series.
+
+        The recent and bulk Quiver endpoints differ in their column names, so
+        every field is looked up tolerantly rather than assumed.
+        """
+        for n in names:
+            if n in df.columns:
+                return df[n]
+        return pd.Series([default] * len(df), index=df.index)
 
     def _normalize_congress(self, df):
         df = df.copy()
-        lows, highs = zip(*df["Range"].map(_parse_range)) if len(df) else ([], [])
+        if "Range" in df.columns:
+            lows, highs = zip(*df["Range"].map(_parse_range)) if len(df) else ([], [])
+            amount_min, amount_max = list(lows), list(highs)
+        else:
+            amt = (self._col(df, "Amount", "Trade_Size_USD", "amount", default=0)
+                   .astype(str).str.replace(r"[$,]", "", regex=True))
+            amt = pd.to_numeric(amt, errors="coerce").fillna(0)
+            amount_min, amount_max = amt.tolist(), amt.tolist()
         out = pd.DataFrame({
-            "ticker": df["Ticker"].str.upper(),
-            "transaction_date": pd.to_datetime(df["TransactionDate"]),
-            "report_date": pd.to_datetime(df["ReportDate"]),
-            "representative": df["Representative"],
-            "party": df["Party"],
-            "chamber": df["House"],
-            "transaction_type": df["Transaction"],
-            "amount_min": list(lows),
-            "amount_max": list(highs),
+            "ticker": self._col(df, "Ticker").astype(str).str.upper(),
+            "transaction_date": pd.to_datetime(self._col(df, "TransactionDate", "Traded"),
+                                               errors="coerce"),
+            "report_date": pd.to_datetime(self._col(df, "ReportDate", "Filed"),
+                                          errors="coerce"),
+            "representative": self._col(df, "Representative", "Name"),
+            "party": self._col(df, "Party"),
+            "chamber": self._col(df, "House", "Chamber"),
+            "transaction_type": self._col(df, "Transaction").astype(str).str.strip().str.title(),
+            "amount_min": amount_min,
+            "amount_max": amount_max,
         })
         return out
 

@@ -48,11 +48,11 @@ class CongressSignal(BaseSignal):
         self.enrichment = enrichment or (
             MockEnrichment() if getattr(client, "mock", False) else LiveEnrichment())
 
-    def compute(self, as_of=None):
+    def compute(self, as_of=None, trades=None):
         as_of = pd.Timestamp(as_of or date.today())
         start = as_of - pd.Timedelta(days=self.lookback_days)
 
-        trades = self.client.congress_trades()
+        trades = self.client.congress_trades() if trades is None else trades
         buys = trades[(trades.transaction_type == "Purchase")
                       & (trades.report_date > start)
                       & (trades.report_date <= as_of)].copy()

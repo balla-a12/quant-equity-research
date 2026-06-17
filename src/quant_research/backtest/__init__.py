@@ -1,1 +1,1 @@
-"""Event-driven backtesting and risk metrics."""
+"""Event-study backtesting and risk metrics."""
