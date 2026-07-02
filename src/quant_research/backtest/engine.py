@@ -159,3 +159,31 @@ def metrics(rets, horizon=21):
     max_dd = (equity / equity.cummax() - 1).min()
     return {"cagr": cagr, "sharpe": sharpe, "sortino": sortino,
             "max_drawdown": max_dd, "hit_rate": (rets > 0).mean(), "n_trades": len(rets)}
+
+
+def beta_alpha(strategy_rets, benchmark_rets, horizon=21):
+    """Split a strategy's per-period returns into market beta and alpha via OLS.
+
+    Regresses strategy returns on the benchmark, r_strat = alpha + beta * r_bench + e,
+    so the long-only conviction return can be separated into the part explained by
+    market exposure (beta) and the residual selection edge (alpha). The two return
+    series are taken from the same non-overlapping schedule and aligned by position.
+    """
+    s = pd.Series(list(strategy_rets), dtype="float64").reset_index(drop=True)
+    b = pd.Series(list(benchmark_rets), dtype="float64").reset_index(drop=True)
+    n = min(len(s), len(b))
+    s, b = s.iloc[:n].to_numpy(), b.iloc[:n].to_numpy()
+    mask = ~(np.isnan(s) | np.isnan(b))
+    s, b = s[mask], b[mask]
+    if len(s) < 3 or np.std(b) == 0:
+        return {"alpha": float("nan"), "alpha_annual": float("nan"),
+                "beta": float("nan"), "r_squared": float("nan"), "n": int(len(s))}
+    beta, alpha = np.polyfit(b, s, 1)
+    pred = alpha + beta * b
+    ss_res = float(np.sum((s - pred) ** 2))
+    ss_tot = float(np.sum((s - s.mean()) ** 2))
+    r2 = 1 - ss_res / ss_tot if ss_tot > 0 else float("nan")
+    per_year = 252 / horizon
+    alpha_annual = (1 + alpha) ** per_year - 1
+    return {"alpha": float(alpha), "alpha_annual": float(alpha_annual),
+            "beta": float(beta), "r_squared": float(r2), "n": int(len(s))}

@@ -33,6 +33,31 @@ class QuiverClient:
             import quiverquant            # imported lazily; unused in mock mode
             self._api = quiverquant.quiver(token)
 
+    def _fetch_live(self, fetch, label, retries=3, backoff=2.0):
+        """Call a live quiverquant endpoint defensively.
+
+        The library builds its frame with ``pd.DataFrame(json.loads(response))``, so a
+        non-tabular reply — most often a rate-limit or auth string — surfaces as an opaque
+        "DataFrame constructor not properly called!". This retries transient failures and
+        then raises a clear, actionable error instead.
+        """
+        import time
+        last = None
+        for attempt in range(retries):
+            try:
+                df = fetch()
+                if isinstance(df, pd.DataFrame) and len(df):
+                    return df
+                last = ValueError("empty response")
+            except Exception as e:               # includes the library's DataFrame error
+                last = e
+            if attempt < retries - 1:
+                time.sleep(backoff * (attempt + 1))
+        raise RuntimeError(
+            f"live {label} fetch failed after {retries} tries ({type(last).__name__}: {last}). "
+            "A non-tabular reply usually means the endpoint is rate-limited — wait a minute "
+            "and retry.")
+
     # ---- Congressional trades -------------------------------------------
     def congress_trades(self, historical=False):
         if self.mock:
@@ -40,7 +65,17 @@ class QuiverClient:
                 history_days=self.mock_history_days,
                 n=max(180, self.mock_history_days * 4))
         else:
-            raw = self._api.congress_trading(recent=not historical)
+            try:
+                raw = self._fetch_live(
+                    lambda: self._api.congress_trading(recent=not historical), "congress")
+            except RuntimeError:
+                if not historical:
+                    raise
+                import warnings
+                warnings.warn("bulk congress endpoint unavailable; using the recent endpoint, "
+                              "which returns less history.")
+                raw = self._fetch_live(
+                    lambda: self._api.congress_trading(recent=True), "congress")
         return self._normalize_congress(raw)
 
     @staticmethod
@@ -107,7 +142,7 @@ class QuiverClient:
             days = max(self.mock_history_days, 120)
             raw = mock_data.mock_gov_contracts(history_days=days, n=max(80, days * 2))
         else:
-            raw = self._api.gov_contracts()
+            raw = self._fetch_live(self._api.gov_contracts, "gov_contracts")
         return self._normalize_gov(raw)
 
     def _normalize_gov(self, df):
@@ -126,7 +161,7 @@ class QuiverClient:
             days = max(self.mock_history_days, 360)
             raw = mock_data.mock_lobbying(history_days=days, n=max(140, days))
         else:
-            raw = self._api.lobbying()
+            raw = self._fetch_live(self._api.lobbying, "lobbying")
         return self._normalize_lobbying(raw)
 
     def _normalize_lobbying(self, df):
@@ -146,7 +181,7 @@ class QuiverClient:
             days = max(self.mock_history_days, 90)
             raw = mock_data.mock_offexchange(history_days=days)
         else:
-            raw = self._api.offexchange()
+            raw = self._fetch_live(self._api.offexchange, "off_exchange")
         return self._normalize_offexchange(raw)
 
     def _normalize_offexchange(self, df):
