@@ -2,6 +2,10 @@
 
 A research pipeline that builds equity-conviction signals from congressional trades, government contracts, lobbying activity, and off-exchange volume, measures their edge with a look-ahead-free backtest, and surfaces the results in a deployable dashboard.
 
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://quant-equity-research-n3yujymrsmhf5cuiu2dark.streamlit.app/)
+
+**[Live dashboard](https://quant-equity-research-n3yujymrsmhf5cuiu2dark.streamlit.app/)** — opens on bundled mock data, so a reviewer can explore it with no setup or key.
+
 **Stack:** Python · pandas · numpy · scipy · plotly · yfinance · quiverquant · Streamlit
 
 ---
